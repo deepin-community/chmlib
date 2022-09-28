@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+
+#export DH_VERBOSE=1
+
+include /usr/share/dpkg/architecture.mk
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
+CFLAGS += -Wall
+CFLAGS+=$(CPPFLAGS)
+CXXFLAGS+=$(CPPFLAGS)
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	dh_autoreconf
+	./configure CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" CFLAGS="$(CFLAGS)" \
+		    --host=$(DEB_HOST_GNU_TYPE) \
+		    --build=$(DEB_BUILD_GNU_TYPE) \
+		    --prefix=/usr \
+		    --mandir=\$${prefix}/share/man \
+		    --infodir=\$${prefix}/share/info \
+		    --enable-examples
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf build-stamp configure-stamp test_chmLib config.log config.cache
+	[ ! -f Makefile ] || $(MAKE) distclean
+	dh_autoreconf_clean
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+	rm -f $(CURDIR)/debian/tmp/usr/lib/libchm.a \
+              $(CURDIR)/debian/tmp/usr/lib/libchm.la
+
+override_dh_installchangelogs:
+	dh_installchangelogs -k NEWS
+
+override_dh_installexamples:
+	dh_installexamples -p libchm-dev src/chm_http.c \
+		 src/enum_chmLib.c src/enumdir_chmLib.c \
+		 src/extract_chmLib.c src/test_chmLib.c
+
+override_dh_makeshlibs:
+	dh_makeshlibs -plibchm1 -V 'libchm1 (>= 0.39-5)'
